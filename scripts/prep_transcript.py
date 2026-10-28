@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""把播客字幕清成能读的连续文本。
+"""ポッドキャストの字幕を、読める連続した文章に整形する。
 
-做四件事：
-  1. 去掉序号行、时间轴、VTT/HTML 标签、重复行
-  2. 把碎片化的字幕行拼回句子
-  3. 按时间间隔和标点切段落
-  4. 顺手报一份统计（汉字数、段落数、时长估算）
+やることは4つ:
+  1. 番号の行、時間軸、VTT/HTML のタグ、重複した行を消す
+  2. 細切れになった字幕の行をつなぎ、文に戻す
+  3. 時間の間隔と句読点で段落を分ける
+  4. ついでに統計（漢字数、段落数、長さの見積もり）を出す
 
-用法：
-    python3 prep_transcript.py 输入.srt
-    python3 prep_transcript.py 输入.srt -o 清洗稿.md
-    python3 prep_transcript.py 输入.txt --speakers      # 只列说话人标签
+使い方:
+    python3 prep_transcript.py 入力.srt
+    python3 prep_transcript.py 入力.srt -o 整形稿.md
+    python3 prep_transcript.py 入力.txt --speakers      # 話し手のラベルだけを一覧にする
 
-支持 SRT / VTT（带时间轴）和 txt / md。带空行的纯文本会尊重原有的空行分段。
+SRT / VTT（時間軸付き）と txt / md に対応する。空行のあるプレーンテキストは、元の空行での段落分けを保つ。
 """
 import argparse
 import re
@@ -24,11 +24,11 @@ NUM = re.compile(r"^\s*\d+\s*$")
 TAG = re.compile(r"<[^>]{1,40}>")
 SPEAKER = re.compile(
     r"^\s*\*{0,2}\s*(?:\[|【)?\s*([\u4e00-\u9fffA-Za-z0-9 _\-]{1,8}?)\s*(?:\]|】)?\s*[:：]\s*\*{0,2}\s*")
-NO_LABEL = ("说", "道", "问", "答", "是", "有", "我见", "注意")   # 这些不像人名，别当说话人
-HEADING = ("#", ">", "---", "|")   # 原样保留的块，不参与合并
-PARA_GAP = 1.5     # 秒，大于这个间隔视为换段
-PARA_CHARS = 140   # 段落软上限，到句末且超过它就断开
-HARD_CHARS = 300   # 硬上限，没标点的 ASR 稿也按这个断
+NO_LABEL = ("说", "道", "问", "答", "是", "有", "我见", "注意")   # これらは人名らしくないので、話し手として扱わない
+HEADING = ("#", ">", "---", "|")   # そのまま残すブロックで、結合しない
+PARA_GAP = 1.5     # 秒。これより間隔が空いたら段落を替える
+PARA_CHARS = 140   # 段落の長さのゆるい上限。文末に来て、かつこれを超えたら段落を分ける
+HARD_CHARS = 300   # 厳密な上限。句読点のない ASR の書き起こしもこれで分ける
 
 
 def parse_time(s):
@@ -53,7 +53,7 @@ def parse_time(s):
 
 
 def parse(text):
-    """返回 [(start, end, text), ...]"""
+    """[(start, end, text), ...] を返す"""
     cues = []
     if "-->" in text:
         for block in re.split(r"\n\s*\n", text):
@@ -73,7 +73,7 @@ def parse(text):
             cues.append((None, None, TAG.sub("", " ".join(lines)).strip()))
         return cues
 
-    # 纯文本：一行一条，交给 build() 按标点和说话人合并
+    # プレーンテキスト: 1行を1件とし、句読点と話し手による結合は build() に任せる
     for line in text.split("\n"):
         line = TAG.sub("", line).strip()
         if line and not TS.match(line) and not NUM.match(line):
@@ -104,11 +104,11 @@ def is_standalone(txt):
 
 
 def build(cues, split_speaker=True):
-    """把 cue 拼成段落。
+    """cue をつないで段落にする。
 
-    规则：同一说话人的连续片段合并（ASR 常把一句话切成好几条）；说话人变了、
-    时间断档超过 PARA_GAP 秒、或者同一个人的话已经堆到 PARA_CHARS 字并在句末，
-    就断开。标题与引用行前后都断开，自己成段。
+    ルール: 同じ話し手の続いた断片は結合する（ASR はよく1文を何件にも分ける）。話し手が替わったとき、
+    時間が PARA_GAP 秒より空いたとき、同じ人の話が PARA_CHARS 字までたまって文末に来たときは、
+    段落を分ける。見出しと引用の行は前後で分け、それだけで1段落にする。
     """
     paras, buf, buf_start, last_end, cur = [], "", None, None, None
     for start, end, txt in cues:
@@ -150,7 +150,7 @@ def build(cues, split_speaker=True):
 
 
 def split_long(para, limit=260):
-    """超长段落按句末断开。"""
+    """長すぎる段落を文末で分ける。"""
     if len(para) <= limit:
         return [para]
     out, buf = [], ""
@@ -177,14 +177,14 @@ def main():
     ap.add_argument("path")
     ap.add_argument("-o", "--out")
     ap.add_argument("--no-split-speaker", action="store_true",
-                    help="不因为说话人变化而断段")
-    ap.add_argument("--speakers", action="store_true", help="只列说话人标签")
+                    help="話し手が替わっても段落を分けない")
+    ap.add_argument("--speakers", action="store_true", help="話し手のラベルだけを一覧にする")
     args = ap.parse_args()
 
     raw = Path(args.path).read_text(encoding="utf-8", errors="replace")
     cues = parse(raw)
     if not cues:
-        sys.exit(f"没解析出内容：{args.path}")
+        sys.exit(f"内容を読み取れなかった: {args.path}")
 
     if args.speakers:
         found = {}
@@ -192,7 +192,7 @@ def main():
             m = SPEAKER.match(t)
             if m:
                 found[m.group(1)] = found.get(m.group(1), 0) + 1
-        print(f"解析出 {len(cues)} 条")
+        print(f"{len(cues)} 件を読み取った")
         for k, v in sorted(found.items(), key=lambda x: -x[1]):
             print(f"  {k}  {v}")
         return
@@ -206,7 +206,7 @@ def main():
     last = cues[-1][1] or cues[-1][0]
     dur = fmt_time(last)
 
-    # 去重相邻重复段（ASR 常见）
+    # 隣り合った同じ段落を1つにする（ASR でよく起きる）
     dedup = []
     for s, p in paras:
         if dedup and dedup[-1][1].strip() == p.strip():
@@ -223,15 +223,15 @@ def main():
 
     heads = sum(1 for _, p in paras if p.lstrip().startswith("#"))
     punct = len(re.findall(r"[。！？!?]", "".join(p for _, p in paras)))
-    stats = (f"# 统计：汉字 {zh}，段落 {len(paras)}，原始片段 {len(cues)}，章节标题 {heads}，"
-             f"时长约 {dur}，去重 {dropped} 段")
+    stats = (f"# 統計: 漢字 {zh}、段落 {len(paras)}、元の断片 {len(cues)}、章の見出し {heads}、"
+             f"長さ 約 {dur}、重複を除いた段落 {dropped}")
     if punct < 0.5 * len(paras):
-        stats += ("\n# 注意：句末标点少（取决于 ASR），段落边界是按长度切的。"
-                  "下一步做要点梳理之前先补标点、逐条断句。")
+        stats += ("\n# 注意: 文末の句読点が少ない（ASR による）ので、段落の区切りは長さで決めている。"
+                  "次に要点を整理する前に、句読点を補い、1文ずつ区切る。")
     if args.out:
         Path(args.out).write_text(body + "\n", encoding="utf-8")
         print(stats, file=sys.stderr)
-        print(f"已写入 {args.out}", file=sys.stderr)
+        print(f"{args.out} に書き出した", file=sys.stderr)
     else:
         print(body)
         print("\n" + stats, file=sys.stderr)
