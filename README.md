@@ -1,6 +1,6 @@
 # ポッドキャストを記事に · podcast-to-article
 
-> このリポジトリは [orange2ai/podcast-to-article](https://github.com/orange2ai/podcast-to-article)（MIT）をフォークし、中国語の文書を日本語に訳したものだ（2026-10-28）。中国語の原文は [README.zh.md](./README.zh.md)、英語版は [README.en.md](./README.en.md) にある。
+> このリポジトリは [orange2ai/podcast-to-article](https://github.com/orange2ai/podcast-to-article)（MIT）をフォークし、中国語の文書を日本語に訳したものだ（2026-10-28）。中国語の原文は[元のリポジトリの README](https://github.com/orange2ai/podcast-to-article/blob/main/README.md)、英語版は [README.en.md](./README.en.md) にある。
 
 ポッドキャスト1回分の文字起こしを、そのまま公開できる長文の記事にまとめるスキル。複数人の対談にも1対1のインタビューにも使え、素材は中国語でも英語でもいい。
 
