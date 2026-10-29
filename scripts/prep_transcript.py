@@ -23,8 +23,9 @@ TS = re.compile(r"^\s*\d{1,2}:\d{2}(:\d{2})?[.,]\d{1,3}\s*-->")
 NUM = re.compile(r"^\s*\d+\s*$")
 TAG = re.compile(r"<[^>]{1,40}>")
 SPEAKER = re.compile(
-    r"^\s*\*{0,2}\s*(?:\[|【)?\s*([\u4e00-\u9fffA-Za-z0-9 _\-]{1,8}?)\s*(?:\]|】)?\s*[:：]\s*\*{0,2}\s*")
-NO_LABEL = ("说", "道", "问", "答", "是", "有", "我见", "注意")   # これらは人名らしくないので、話し手として扱わない
+    r"^\s*\*{0,2}\s*(?:\[|【)?\s*([\u3040-\u30ff\u4e00-\u9fffA-Za-z0-9 _\-]{1,8}?)\s*(?:\]|】)?\s*[:：]\s*\*{0,2}\s*")
+NO_LABEL = ("说", "道", "问", "答", "是", "有", "我见", "注意",
+            "結論", "まとめ", "ポイント", "補足", "メモ", "例", "質問", "答え")   # これらは人名らしくないので、話し手として扱わない
 HEADING = ("#", ">", "---", "|")   # そのまま残すブロックで、結合しない
 PARA_GAP = 1.5     # 秒。これより間隔が空いたら段落を替える
 PARA_CHARS = 140   # 段落の長さのゆるい上限。文末に来て、かつこれを超えたら段落を分ける
@@ -189,9 +190,9 @@ def main():
     if args.speakers:
         found = {}
         for _, _, t in cues:
-            m = SPEAKER.match(t)
-            if m:
-                found[m.group(1)] = found.get(m.group(1), 0) + 1
+            name = speaker_of(t)
+            if name:
+                found[name] = found.get(name, 0) + 1
         print(f"{len(cues)} 件を読み取った")
         for k, v in sorted(found.items(), key=lambda x: -x[1]):
             print(f"  {k}  {v}")
@@ -202,7 +203,9 @@ def main():
         for chunk in split_long(body):
             paras.append((start, chunk))
 
-    zh = len(re.findall(r"[\u4e00-\u9fff]", "".join(p for _, p in paras)))
+    joined = "".join(p for _, p in paras)
+    zh = len(re.findall(r"[\u3040-\u30ff\u4e00-\u9fff]", joined))
+    unit = "文字" if re.search(r"[\u3040-\u30ff]", joined) else "漢字"
     last = cues[-1][1] or cues[-1][0]
     dur = fmt_time(last)
 
@@ -223,7 +226,7 @@ def main():
 
     heads = sum(1 for _, p in paras if p.lstrip().startswith("#"))
     punct = len(re.findall(r"[。！？!?]", "".join(p for _, p in paras)))
-    stats = (f"# 統計: 漢字 {zh}、段落 {len(paras)}、元の断片 {len(cues)}、章の見出し {heads}、"
+    stats = (f"# 統計: {unit} {zh}、段落 {len(paras)}、元の断片 {len(cues)}、章の見出し {heads}、"
              f"長さ 約 {dur}、重複を除いた段落 {dropped}")
     if punct < 0.5 * len(paras):
         stats += ("\n# 注意: 文末の句読点が少ない（ASR による）ので、段落の区切りは長さで決めている。"

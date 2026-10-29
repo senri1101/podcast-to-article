@@ -70,7 +70,7 @@ python3 scripts/check_style.py 完成稿.md
 
 対応する形式は SRT、VTT と、md / txt に変換済みの書き起こしだ（`**話し手：**` の印が付いたものも読める）。
 
-> 訳注: `check_style.py` の判定ルールと上の目安の値は、中国語の文章を対象にしたものだ。日本語の原稿にかけても、多くの項目は検出されない。
+> 訳注: `check_style.py` は、かなの多さで原稿が中国語か日本語かを判断し、その言語のルールで数える（`--lang ja` か `--lang zh` で指定もできる）。日本語のルールは中国語のルールを日本語に置き換えたもので、人が書いた日本語の文章の基準値はまだ測られていない。そのため日本語の原稿では、項目ごとの件数だけを出す。上の目安の値（10〜28％、30％以下）も、中国語の文章での値だ。
 
 ## 構成
 
@@ -80,6 +80,7 @@ references/style-rules.md      言葉づかいの決まり。各項目に人とA
 references/example.md          同じ文字起こしを2回まとめた例。元の原稿と完成稿の対照
 scripts/prep_transcript.py     字幕の整形
 scripts/check_style.py         完成稿の自己チェック
+tests/test_scripts.py          スクリプトのテスト（python3 -m unittest tests.test_scripts で実行）
 ```
 
 ## ルールの出どころ
